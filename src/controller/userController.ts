@@ -137,6 +137,36 @@ class UserController {
         }
     }
     
+    async logoutUser(req: Request, res: Response) {
+        try {
+            res.clearCookie('accessToken');
+            res.setHeader('Authorization', '');
+    
+            res.status(HTTP_STATUS_CODE.SUCCESS).json({ message: 'Logout successful' });
+        } catch (error) {
+            console.error('Error logging out user:', error);
+            res.status(HTTP_STATUS_CODE.INTERNAL_SERVER).json({ message: 'Internal server error' });
+        }
+    }
+    
+    async deleteUser (req: Request, res: Response) {
+        try {
+            let id = req.params["id"];
+            const user = await new UserRepo().delete(id);
+            if (!user) {
+                res.status(HTTP_STATUS_CODE.NOT_FOUND).json({ message: 'User not found' });
+                return;
+            }
+            res.status(HTTP_STATUS_CODE.SUCCESS).json({
+                message: 'User deleted successfully',
+                data: user,
+                status: HTTP_STATUS_CODE.SUCCESS,
+            });
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            res.status(HTTP_STATUS_CODE.INTERNAL_SERVER).json({ message: 'Internal server error' });
+        }
+    }
 }
 
 export default new UserController;
