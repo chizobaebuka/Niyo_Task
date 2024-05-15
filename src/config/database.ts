@@ -1,6 +1,8 @@
 import { Sequelize } from "sequelize-typescript";
 import { db_name, db_host, db_port, db_user, db_password } from "./config";
 import * as dotenv from 'dotenv';
+import { User } from "../models/userModel";
+import { Task } from "../models/taskModel";
 
 dotenv.config();
 
@@ -26,7 +28,7 @@ class Database {
             host: this.POSTGRES_HOST,
             port: this.POSTGRES_PORT ,
             dialect: 'postgres',
-            // models: [User, Task],
+            models: [User, Task],
             logging: console.log,
         });
 
