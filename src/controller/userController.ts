@@ -51,6 +51,92 @@ class UserController {
             res.status(HTTP_STATUS_CODE.UNAUTHORIZED).json({ message: error.message });
         }
     }
+
+    async findAllUsers (req: Request, res: Response) {
+        try {
+            const users = await new UserRepo().findAll();
+            res.status(HTTP_STATUS_CODE.SUCCESS).json({
+                message: 'Users retrieved successfully',
+                data: users,
+                status: HTTP_STATUS_CODE.SUCCESS,
+            });
+        } catch (error) {
+            console.error('Error retrieving users:', error);
+            res.status(HTTP_STATUS_CODE.INTERNAL_SERVER).json({ message: 'Internal server error' });
+        }
+    }
+
+    async findUserById (req: Request, res: Response) {
+        try {
+            let id = req.params["id"];
+            // const { id } = req.params;
+            const user = await new UserRepo().findById(id);
+            if (!user) {
+                res.status(HTTP_STATUS_CODE.NOT_FOUND).json({ message: 'User not found' });
+                return;
+            }
+            res.status(HTTP_STATUS_CODE.SUCCESS).json({
+                message: 'User retrieved successfully',
+                data: user,
+                status: HTTP_STATUS_CODE.SUCCESS,
+            });
+        } catch (error) {
+            console.error('Error retrieving user:', error);
+            res.status(HTTP_STATUS_CODE.INTERNAL_SERVER).json({ message: 'Internal server error' });
+        }
+    }
+
+    async updateUser(req: Request, res: Response) {
+        const { id } = req.params;
+        const { name, email, password, dateOfBirth, country } = req.body;
+    
+        try {
+            const user = await User.findOne({ where: { id: id } });
+    
+            if (!user) {
+                res.status(HTTP_STATUS_CODE.NOT_FOUND).json({
+                    message: 'User not found',
+                    status: HTTP_STATUS_CODE.NOT_FOUND
+                });
+                return;
+            }
+    
+            // Update the user's properties
+            if (name) user.name = name;
+            if (email) user.email = email;
+            if (password) user.password = await bcrypt.hash(password, 10); // Hash the password before saving
+            if (dateOfBirth) user.dateOfBirth = dateOfBirth;
+            if (country) user.country = country;
+    
+            // Save the user
+            await user.save();
+            const updatedUser = await User.findOne({ where: { id: id } });
+    
+            // Ensures updatedUser is not null
+            if (!updatedUser) {
+                res.status(HTTP_STATUS_CODE.NOT_FOUND).json({
+                    message: 'User not found after update',
+                    status: HTTP_STATUS_CODE.NOT_FOUND
+                });
+                return;
+            }
+
+            await new UserRepo().update(updatedUser);
+    
+            res.status(HTTP_STATUS_CODE.SUCCESS).json({
+                message: 'User updated successfully',
+                data: updatedUser.get(),
+                status: HTTP_STATUS_CODE.SUCCESS
+            });
+        } catch (error: any) {
+            console.error('Error updating user:', error);
+            res.status(HTTP_STATUS_CODE.INTERNAL_SERVER).json({
+                message: 'Internal server error',
+                error: error.message
+            });
+        }
+    }
+    
 }
 
 export default new UserController;
