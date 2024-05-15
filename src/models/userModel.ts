@@ -1,6 +1,6 @@
-
 import { Model, Table, Column, DataType, HasMany, ForeignKey, PrimaryKey } from "sequelize-typescript";
 import { v4 as uuidv4 } from "uuid";
+import { Task } from "./taskModel";
 
 @Table({
   tableName: User.USER_TABLE_NAME,
@@ -69,6 +69,6 @@ export class User extends Model {
   })
   updatedAt!: Date;
 
-//   @HasMany(() => Package)
-//   packages!: Package[];
+  @HasMany(() => Task)
+  packages!: Task[];
 }

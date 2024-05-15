@@ -1,5 +1,6 @@
 import express, { Application, Request, Response } from "express";
 import Database from "./config/database";
+import UserRouter from "./router/UserRouter";
 
 
 class App {
@@ -8,8 +9,14 @@ class App {
     constructor() {
         this.app = express();
         this.databaseSync();
+        this.plugins();
         this.routes();
     }
+
+    protected plugins(): void {
+        this.app.use(express.json());
+        this.app.use(express.urlencoded({ extended: true }));
+      }
 
     protected databaseSync(): void {
         const db = new Database();
@@ -17,9 +24,10 @@ class App {
     }
 
     protected routes(): void {
-        this.app.get("/", (req: Request, res: Response) => {
-            res.send("Hello World");
-        });
+        // this.app.get("/", (req: Request, res: Response) => {
+        //     res.send("Hello World");
+        // });
+        this.app.use("/api/v1/users", UserRouter);
     }
 }
 
