@@ -29,6 +29,28 @@ class UserController {
             res.status(HTTP_STATUS_CODE.INTERNAL_SERVER).json({ message: 'Internal server error' });
         }
     }
+
+    async loginUser(req: Request, res: Response) {
+        try {
+            const { email, password } = req.body;
+
+            const userRepo = new UserRepo();
+            const loginResult = await userRepo.login(email, password);
+
+            res.cookie('accessToken', loginResult.token, { httpOnly: true, maxAge: 3600000 }); // 1 hour expiration
+
+            res.setHeader('Authorization', `Bearer ${loginResult.token}`);
+
+
+            res.status(HTTP_STATUS_CODE.SUCCESS).json({
+                message: 'Login successful',
+                user: loginResult.user,
+                token: loginResult.token,
+            });
+        } catch (error: any) {
+            res.status(HTTP_STATUS_CODE.UNAUTHORIZED).json({ message: error.message });
+        }
+    }
 }
 
 export default new UserController;

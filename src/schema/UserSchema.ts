@@ -1,9 +1,35 @@
 import * as z from 'zod';
 
 export const createUserSchema = z.object({
-    name: z.string().min(1), // Simply checks if name is a non-empty string
-    email: z.string().email(), // Checks if email is a valid email format
-    password: z.string().min(1), // Simply checks if password is a non-empty string
-    dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // Checks if dateOfBirth is in the format "yyyy-mm-dd"
-    country: z.string().min(1), // Simply checks if country is a non-empty string
+    body: z.object({
+        name: z.string({
+            required_error: 'Name is required'
+        }).min(3, 'Name must be at least 3 characters long'),
+        email: z.string({
+            required_error: 'Email is required'
+        }).email('Invalid email format'),
+        password: z.string({
+            required_error: 'Password is required'
+        }).min(6, 'Password must be at least 6 characters long')
+        .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/, 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
+        dateOfBirth: z.string({
+            required_error: 'Birthdate is required'
+        }),
+        country: z.string({
+            required_error: 'Country is required'
+        })
+    })
 });
+
+export const loginUserSchema = z.object({
+    body: z.object({
+        email: z.string({
+            required_error: 'Email is required'
+        }).email('Invalid email format'),
+        password: z.string({
+            required_error: 'Password is required'
+        }).min(6, 'Password must be at least 6 characters long')
+        //.regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/, 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character')
+    })
+});
+
