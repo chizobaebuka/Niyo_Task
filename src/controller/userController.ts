@@ -2,8 +2,6 @@ import { Request, Response } from 'express';
 import * as bcrypt from 'bcrypt';
 import { User } from '../models/userModel';
 import { UserRepo } from '../repository/userRepo';
-// import { createUserSchema } from '../schema/userSchema';
-import jwt from 'jsonwebtoken';
 import * as dotenv from 'dotenv';
 import { HTTP_STATUS_CODE } from '../constants/httpStatusCodes';
 
