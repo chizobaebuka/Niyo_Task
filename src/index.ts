@@ -1,6 +1,7 @@
 import express, { Application, Request, Response } from "express";
 import Database from "./config/database";
 import UserRouter from "./router/UserRouter";
+import TaskRouter from "./router/TaskRouter";
 
 
 class App {
@@ -24,10 +25,8 @@ class App {
     }
 
     protected routes(): void {
-        // this.app.get("/", (req: Request, res: Response) => {
-        //     res.send("Hello World");
-        // });
         this.app.use("/api/v1/users", UserRouter);
+        this.app.use('/api/v1/tasks', TaskRouter);
     }
 }
 
