@@ -1,0 +1,17 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+        <title>Document</title>
+    </head>
+    <body>
+        <button onclick="sendMsg()">Click Here</button>
+        <script>
+            const socket = io('http://localhost:8080');
+            function sendMsg() {
+                socket.emit('message', 'Socker io connected!!! Hello World');
+            }
+        </script>
+    </body>
+</html>
