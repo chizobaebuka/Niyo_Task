@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 import { createTaskSchema } from '../schema/TaskSchema';
 import { TaskStatus } from '../interfaces/task.interface';  
 import { TaskRepo } from '../repository/taskRepo';
+import appInstance from '../index';
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ class TaskController {
             }
     
             const createdTask = await Task.create(newTask);
+            appInstance.io.emit('taskcreated', createdTask)
 
             return res.status(HTTP_STATUS_CODE.CREATED).json({
                 message: 'Task created successfully',

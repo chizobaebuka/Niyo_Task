@@ -1,17 +1,88 @@
+<!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-        <title>Document</title>
-    </head>
-    <body>
-        <button onclick="sendMsg()">Click Here</button>
-        <script>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Task Manager</h1>
+        <section id="taskForm">
+            <h2>Create a New Task</h2>
+            <form id="createTaskForm">
+                <div class="form-group">
+                    <label for="taskName">Task Name:</label>
+                    <input type="text" id="taskName" name="taskName" required />
+                </div>
+                <div class="form-group">
+                    <label for="taskDescription">Task Description:</label>
+                    <textarea id="taskDescription" name="taskDescription"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="taskStatus">Task Status:</label>
+                    <select id="taskStatus" name="taskStatus" required>
+                        <option value="SentOut">Sent Out</option>
+                        <option value="InTransit">In Transit</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Received">Received</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="dueDate">Due Date:</label>
+                    <input type="date" id="dueDate" name="dueDate" />
+                </div>
+                <button type="submit">Create Task</button>
+            </form>
+        </section>
+
+        <section id="taskList">
+            <!-- Placeholder for task list -->
+        </section>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
             const socket = io('http://localhost:8080');
-            function sendMsg() {
-                socket.emit('message', 'Socker io connected!!! Hello World');
-            }
-        </script>
-    </body>
+
+            // Log when socket connection is established
+            socket.on('connect', () => {
+                console.log('Socket connected successfully');
+            });
+
+            // Log any errors in socket connection
+            socket.on('connect_error', (error) => {
+                console.error('Socket connection error:', error);
+            });
+
+            // Listen for the "taskCreated" event from the server (backend ./src/index.ts)
+            socket.on('taskCreated', (data) => {
+                console.log('Task created:', data);
+            });
+
+            // Get the form element
+            const createTaskForm = document.getElementById('createTaskForm');
+
+            // Add event listener to the form for form submission
+            createTaskForm.addEventListener('submit', function(event) {
+                // Prevent the default form submission behavior
+                event.preventDefault();
+                
+                // Get the form data
+                const formData = new FormData(createTaskForm);
+                
+                // Convert form data to JSON object
+                const taskData = {};
+                formData.forEach((value, key) => {
+                    taskData[key] = value;
+                });
+                
+                // Emit the "createTask" event with the task data
+                socket.emit('createTask', taskData);
+            });
+        });
+    </script>
+</body>
 </html>
