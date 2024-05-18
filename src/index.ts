@@ -36,32 +36,34 @@ class App {
         this.app.use("/api/v1/users", UserRouter);
         this.app.use('/api/v1/tasks', TaskRouter);
         this.app.get('/', (req: Request, res: Response) => {
-            res.sendFile(path.resolve('./client/index.html'));
-        })
+            res.sendFile(path.resolve(__dirname, '../src/client/index.html'));
+        });
+        
     }
 
     protected sockets(): void {
         this.io.on("connection", (socket) => {
             console.log("A user connected", socket.id);
-
+    
             socket.on("disconnect", () => {
                 console.log("A user disconnected");
             });
-
-            socket.on("message", (message) => {
-                console.log("Message received: ", message);
-                // Echo the message back to the client
-                this.io.emit("message", message);
+    
+            socket.on("createTask", (taskData) => {
+                console.log("Task created:", taskData);
+                // Emit a message to acknowledge the task creation
+                socket.emit("taskCreated", { message: "Task created successfully", task: taskData });
             });
         });
     }
+    
 
     protected staticFiles(): void {
-        this.app.use(express.static(path.join(__dirname, '..', 'client')));
+        this.app.use(express.static(path.join(__dirname, '..', 'src', 'client')));
         this.app.get('*', (req, res) => {
-            res.sendFile(path.join(__dirname, '..', 'client', 'index.html'));
+            res.sendFile(path.join(__dirname, '..', 'src', 'client', 'index.html'));
         });
-    }
+    }    
     
 }
 
@@ -72,3 +74,5 @@ const app = appInstance.app;
 appInstance.server.listen(port, () => {
     console.log(`✅ Server started successfully!, App listening at http://localhost:${port}`);
 });
+
+export default appInstance;
