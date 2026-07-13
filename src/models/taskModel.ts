@@ -1,5 +1,6 @@
 import { Model, Table, Column, DataType, ForeignKey, BelongsTo, PrimaryKey } from "sequelize-typescript";
 import { User } from "./userModel";
+import { TaskStatus } from "../interfaces/task.interface";
 
 @Table({
   tableName: "Tasks",
@@ -47,13 +48,17 @@ export class Task extends Model {
   })
   description?: string;
 
+  // STRING + validate rather than a native ENUM: converting an existing STRING column to a Postgres
+  // ENUM type via sync({ alter: true }) fails on databases that already have rows/defaults, since
+  // Postgres can't auto-cast a column default across the type change.
   @Column({
     type: DataType.STRING(50),
     allowNull: false,
-    defaultValue: 'pending',
+    defaultValue: TaskStatus.Open,
+    validate: { isIn: [Object.values(TaskStatus)] },
     field: Task.TASK_STATUS,
   })
-  status!: string;
+  status!: TaskStatus;
 
   @Column({
     type: DataType.DATE,

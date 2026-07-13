@@ -1,11 +1,12 @@
-import { IUser } from "./user.interface";
-
 export interface ITask {
-    id: number;
+    id: string;
     name: string;
-    pickupDate: Date;
+    description?: string;
+    dueDate: Date;
     status: TaskStatus;
-    userId: IUser;
+    userId: string;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 export enum TaskStatus {

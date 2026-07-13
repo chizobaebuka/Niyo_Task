@@ -7,5 +7,5 @@ export interface IUser {
     password: string;
     dateOfBirth: Date;
     country: string;
-    task: ITask[];
+    tasks: ITask[];
 }

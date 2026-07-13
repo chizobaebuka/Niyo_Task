@@ -1,7 +1,13 @@
-import { Model, Table, Column, DataType, HasMany, ForeignKey, PrimaryKey } from "sequelize-typescript";
+import { Model, Table, Column, DataType, HasMany, ForeignKey, PrimaryKey, DefaultScope, Scopes } from "sequelize-typescript";
 import { v4 as uuidv4 } from "uuid";
 import { Task } from "./taskModel";
 
+@DefaultScope(() => ({
+  attributes: { exclude: ["password"] },
+}))
+@Scopes(() => ({
+  withPassword: {},
+}))
 @Table({
   tableName: User.USER_TABLE_NAME,
   timestamps: true,
@@ -23,7 +29,7 @@ export class User extends Model {
     defaultValue: () => uuidv4(),
     field: User.USER_ID,
   })
-  id!: number;
+  id!: string;
 
   @Column({
     type: DataType.STRING(255),
@@ -33,6 +39,8 @@ export class User extends Model {
 
   @Column({
     type: DataType.STRING(255),
+    unique: true,
+    validate: { isEmail: true },
     field: User.USER_EMAIL,
   })
   email!: string;
@@ -70,5 +78,12 @@ export class User extends Model {
   updatedAt!: Date;
 
   @HasMany(() => Task)
-  packages!: Task[];
+  tasks!: Task[];
+
+  /** Safety net: password must never be serialized, even for instances built via create()/unscoped() lookups. */
+  toJSON(): object {
+    const values = { ...this.get() } as Record<string, unknown>;
+    delete values.password;
+    return values;
+  }
 }

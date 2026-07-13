@@ -4,8 +4,7 @@ import { Task } from '../models/taskModel';
 import { RequestExt } from '../middleware/authenticateUser';
 import { HTTP_STATUS_CODE } from '../constants';
 import { v4 as uuidv4 } from "uuid";
-import { createTaskSchema } from '../schema/TaskSchema';
-import { TaskStatus } from '../interfaces/task.interface';  
+import { createTaskSchema, updateTaskSchema } from '../schema/TaskSchema';
 import { TaskRepo } from '../repository/taskRepo';
 import appInstance from '../index';
 
@@ -24,20 +23,13 @@ class TaskController {
     
         const _data = requestData.data;
         const taskId = uuidv4();
-    
+
         try {
-            const statusValue = _data.status as TaskStatus;
-            if (!(statusValue in TaskStatus)) {
-                return res.status(HTTP_STATUS_CODE.BAD_REQUEST).json({
-                    message: 'Invalid status value. Status should be one of: SentOut, InTransit, Pending, Received'
-                });
-            }
-    
             // Ensure that the properties of newTask match the Task model
             const newTask = {
                 id: taskId,
                 name: _data.name,
-                status: statusValue,
+                status: _data.status,
                 description: _data.description,
                 dueDate: _data.dueDate, // Ensure that dueDate property is correctly set
                 userId: userId,
@@ -60,40 +52,43 @@ class TaskController {
 
     async getTaskById(req: RequestExt, res: Response) {
         try {
-            const taskId = req.params.id; 
+            const taskId = req.params.id;
+            const requesterId = req.body._userId;
             if (!taskId) {
-                return res.status(400).json({ message: 'Task ID is missing in request' });
+                return res.status(HTTP_STATUS_CODE.BAD_REQUEST).json({ message: 'Task ID is missing in request' });
             }
-    
+
             const task = await new TaskRepo().findById(taskId);
             if (!task) {
-                return res.status(404).json({ message: 'Task not found' });
+                return res.status(HTTP_STATUS_CODE.NOT_FOUND).json({ message: 'Task not found' });
             }
-    
-            return res.status(200).json({
+            if (task.userId !== requesterId) {
+                return res.status(HTTP_STATUS_CODE.FORBIDDEN).json({ message: 'You do not have permission to view this task' });
+            }
+
+            return res.status(HTTP_STATUS_CODE.SUCCESS).json({
                 message: 'Task retrieved successfully',
                 data: task,
-                status: 200,
+                status: HTTP_STATUS_CODE.SUCCESS,
             });
         } catch (error) {
             console.error('Error retrieving task:', error);
-            return res.status(500).json({ message: 'Internal server error' });
+            return res.status(HTTP_STATUS_CODE.INTERNAL_SERVER).json({ message: 'Internal server error' });
         }
     }
-    
+
+    /** Returns the requesting user's own tasks. There is no admin role in this system, so a system-wide listing would leak every user's tasks to anyone with a valid token. */
     async getAllTasks(req: RequestExt, res: Response) {
         try {
-            const tasks = await new TaskRepo().findAll();
-            if(!tasks) {
-                return res.status(HTTP_STATUS_CODE.NOT_FOUND).json({ message: 'Packages not found' });
-            }
+            const requesterId = req.body._userId;
+            const tasks = await new TaskRepo().getTasksByUserId(requesterId);
             return res.status(HTTP_STATUS_CODE.SUCCESS).json({
                 message: 'Tasks retrieved successfully',
                 data: tasks,
                 status: HTTP_STATUS_CODE.SUCCESS,
             });
         } catch (error) {
-            console.error('Error getting all package:', error);
+            console.error('Error getting tasks:', error);
             res.status(HTTP_STATUS_CODE.INTERNAL_SERVER).json({ message: 'Internal server error' });
         }
     };
@@ -101,68 +96,63 @@ class TaskController {
     async getAllTasksByUserId(req: RequestExt, res: Response) {
         try {
             const userId = req.params.userId;
+            const requesterId = req.body._userId;
             if (!userId) {
               return res.status(HTTP_STATUS_CODE.BAD_REQUEST).json({ message: 'User ID is missing in request' });
             }
-        
-            const packages = await new TaskRepo().getTasksByUserId(userId);
-            if (!packages || packages.length === 0) {
-              return res.status(HTTP_STATUS_CODE.NOT_FOUND).json({ message: 'No tasks found for the user' });
+            if (userId !== requesterId) {
+              return res.status(HTTP_STATUS_CODE.FORBIDDEN).json({ message: 'You do not have permission to view this user\'s tasks' });
             }
-        
+
+            const tasks = await new TaskRepo().getTasksByUserId(userId);
+
             return res.status(HTTP_STATUS_CODE.SUCCESS).json({
               message: `Tasks retrieved successfully for the user with id: ${userId}`,
-              data: packages,
+              data: tasks,
               status: HTTP_STATUS_CODE.SUCCESS,
             });
           } catch (error) {
-            console.error('Error retrieving packages:', error);
+            console.error('Error retrieving tasks:', error);
             return res.status(HTTP_STATUS_CODE.INTERNAL_SERVER).json({ message: 'Internal server error' });
           }
     }
 
     async updateTaskById(req: RequestExt, res: Response) {
-        const taskId = req.params.id
-        const { name, status, dueDate } = req.body;
+        const taskId = req.params.id;
+        const { _user, _userId: requesterId, ...rest } = req.body;
+
+        const requestData = updateTaskSchema.safeParse(rest);
+        if (!requestData.success) {
+            return res.status(HTTP_STATUS_CODE.BAD_REQUEST).json({
+                message: requestData.error.issues
+            });
+        }
 
         try {
             const task = await Task.findOne({ where: { id: taskId } });
-    
+
             if (!task) {
-                res.status(HTTP_STATUS_CODE.NOT_FOUND).json({
+                return res.status(HTTP_STATUS_CODE.NOT_FOUND).json({
                     message: 'Task not found',
                     status: HTTP_STATUS_CODE.NOT_FOUND
                 });
-                return;
             }
-    
-            // Update the user's properties
-            if (name) task.name = name;
-            if (status) task.status = status;
-            if (dueDate) task.dueDate = dueDate;
-    
-            // Save the task
-            await task.save();
-            const updatedTask = await Task.findOne({ where: { id: taskId } });
-    
-            // Ensures updatedTask is not null
-            if (!updatedTask) {
-                res.status(HTTP_STATUS_CODE.NOT_FOUND).json({
-                    message: 'User not found after update',
-                    status: HTTP_STATUS_CODE.NOT_FOUND
+            if (task.userId !== requesterId) {
+                return res.status(HTTP_STATUS_CODE.FORBIDDEN).json({
+                    message: 'You do not have permission to modify this task',
+                    status: HTTP_STATUS_CODE.FORBIDDEN
                 });
-                return;
             }
 
-            await new TaskRepo().update(updatedTask);
-    
+            const updatedTask = await new TaskRepo().update(taskId, requestData.data);
+
             res.status(HTTP_STATUS_CODE.SUCCESS).json({
-                message: 'User updated successfully',
-                data: updatedTask.get(),
+                message: 'Task updated successfully',
+                data: updatedTask,
                 status: HTTP_STATUS_CODE.SUCCESS
             });
         } catch (error: any) {
-            console.error('Error updating user:', error);
+            console.error('Error updating task:', error);
             res.status(HTTP_STATUS_CODE.INTERNAL_SERVER).json({
                 message: 'Internal server error',
                 error: error.message
@@ -172,6 +162,7 @@ class TaskController {
 
     async deleteTaskById(req: RequestExt, res: Response) {
         const taskId = req.params.id;
+        const requesterId = req.body._userId;
 
         try {
             const task = await Task.findOne({ where: { id: taskId } });
@@ -181,10 +172,15 @@ class TaskController {
                     status: HTTP_STATUS_CODE.NOT_FOUND
                 });
             }
+            if (task.userId !== requesterId) {
+                return res.status(HTTP_STATUS_CODE.FORBIDDEN).json({
+                    message: 'You do not have permission to delete this task',
+                    status: HTTP_STATUS_CODE.FORBIDDEN
+                });
+            }
 
             const taskDeleted = await new TaskRepo().deleteTaskById(task.id)
 
-            // await task.destroy();
             res.status(HTTP_STATUS_CODE.SUCCESS).json({
                 message: 'Task deleted successfully',
                 data: taskDeleted,

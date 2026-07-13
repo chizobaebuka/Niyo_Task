@@ -1,26 +1,29 @@
 import { Task } from "../models/taskModel";
+import { TaskStatus } from "../interfaces/task.interface";
+
+export interface TaskUpdatePayload {
+    name?: string;
+    status?: TaskStatus;
+    dueDate?: Date;
+    description?: string;
+}
 
 interface iTaskRepo {
     findById(task_id: string): Promise<Task | null>;
     findAll(): Promise<Task[]>;
     getTasksByUserId(user_id: string): Promise<Task[]>;
-    update(task: Task): Promise<Task>;
+    update(task_id: string, updates: TaskUpdatePayload): Promise<Task>;
     deleteTaskById(task_id: string): Promise<Task>;
 }
 
 export class TaskRepo implements iTaskRepo {
-    async findById(package_id: string): Promise<Task | null> {
+    async findById(task_id: string): Promise<Task | null> {
         try {
-            const _package = await Task.findOne({ where: { id: package_id } });
-            if (!_package) {
-                throw new Error("Task not found");
-            }
-
-            return _package;
+            return await Task.findOne({ where: { id: task_id } });
         } catch (error) {
             console.error("Error retrieving task:", error);
             throw new Error("Failed to retrieve task by id:");
-        } 
+        }
     };
 
     async findAll(): Promise<Task[]> {
@@ -41,26 +44,26 @@ export class TaskRepo implements iTaskRepo {
         }
     };
 
-    async update(task: Task): Promise<Task> {
+    async update(taskId: string, updates: TaskUpdatePayload): Promise<Task> {
         try {
-          const newTask = await Task.findOne({ where: { id: task.id } });
-          if (!newTask) {
-            throw new Error("User not found");
+          const task = await Task.findOne({ where: { id: taskId } });
+          if (!task) {
+            throw new Error("Task not found");
           }
-          newTask.name = task.name;
-          newTask.status = task.status;
-          newTask.dueDate = task.dueDate;
-    
-          await newTask.save();
-          task.save();
-          return newTask;
+          if (updates.name !== undefined) task.name = updates.name;
+          if (updates.status !== undefined) task.status = updates.status;
+          if (updates.dueDate !== undefined) task.dueDate = updates.dueDate;
+          if (updates.description !== undefined) task.description = updates.description;
+
+          await task.save();
+          return task;
         } catch (err) {
           if (err instanceof Error) {
             console.log(err);
-            throw new Error("Failed to update user: " + err.message);
+            throw new Error("Failed to update task: " + err.message);
           } else {
             console.log(err);
-            throw new Error("Failed to update user: Unknown error occurred");
+            throw new Error("Failed to update task: Unknown error occurred");
           }
         }
       }

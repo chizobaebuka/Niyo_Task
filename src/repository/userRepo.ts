@@ -3,32 +3,48 @@ import * as bcrypt from "bcrypt";
 import * as jwt from "jsonwebtoken";
 import * as db from '../config/config';
 
+export interface UserUpdatePayload {
+  name?: string;
+  email?: string;
+  password?: string; // pre-hashed by the caller
+  dateOfBirth?: Date | string;
+  country?: string;
+}
+
+export interface UserSignUpPayload {
+  name: string;
+  email: string;
+  password: string; // pre-hashed by the caller
+  dateOfBirth: Date | string;
+  country: string;
+}
+
 interface iUserRepo {
-  signUp(user: User): Promise<void>;
+  signUp(user: UserSignUpPayload): Promise<User>;
   login(
     email: string,
     password: string
-  ): Promise<{ user: User | null; token: string | null }>;
+  ): Promise<{ user: User; token: string }>;
   findById(user_id: string): Promise<User | null>;
   findAll(): Promise<User[]>;
-  update(user: User): Promise<User>;
-  delete(user_id: string): Promise<User>;
+  update(user_id: string, updates: UserUpdatePayload): Promise<User>;
+  delete(user_id: string): Promise<User | null>;
 }
 
 export class UserRepo implements iUserRepo {
-  async signUp(user: User): Promise<void> {
+  async signUp(user: UserSignUpPayload): Promise<User> {
     try {
-      const newUser = await User.create({
+      return await User.create({
         name: user.name,
         email: user.email,
         password: user.password,
         dateOfBirth: user.dateOfBirth,
         country: user.country,
       });
-
-      await newUser.save();
-      return;
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.name === "SequelizeUniqueConstraintError") {
+        throw new Error("Email already in use");
+      }
       if (err instanceof Error) {
         console.log(err);
         throw new Error("Failed to create user: " + err.message);
@@ -42,52 +58,48 @@ export class UserRepo implements iUserRepo {
   async login(
     email: string,
     password: string
-  ): Promise<{ user: User | null; token: string | null }> {
-    try {
-      const existingUser = await User.findOne({ where: { email } });
+  ): Promise<{ user: User; token: string }> {
+    // Deliberately identical error for "no such user" and "wrong password" to avoid leaking which emails are registered.
+    const invalidCredentialsError = new Error("Invalid email or password");
 
-      if (!existingUser) {
-        throw new Error("User not found with that email: " + email);
-      }
-
-      const passwordMatch = await bcrypt.compare(
-        password,
-        existingUser.password
-      );
-
-      if (!passwordMatch) {
-        throw new Error("Incorrect password");
-      }
-
-      const token = jwt.sign({ id: existingUser.id }, db.JWT_SECRET, {
-        expiresIn: "1h",
-      });
-
-      return {
-        user: existingUser,
-        token: token,
-      };
-    } catch (error: any) {
-      throw new Error("Failed to login user: " + error.message);
+    const existingUser = await User.scope("withPassword").findOne({ where: { email } });
+    if (!existingUser) {
+      throw invalidCredentialsError;
     }
+
+    const passwordMatch = await bcrypt.compare(password, existingUser.password);
+    if (!passwordMatch) {
+      throw invalidCredentialsError;
+    }
+
+    const token = jwt.sign({ id: existingUser.id }, db.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+
+    return {
+      user: existingUser,
+      token,
+    };
   }
 
-  async update(user: User): Promise<User> {
+  async update(userId: string, updates: UserUpdatePayload): Promise<User> {
     try {
-      const newUser = await User.findOne({ where: { id: user.id } });
-      if (!newUser) {
+      const user = await User.findOne({ where: { id: userId } });
+      if (!user) {
         throw new Error("User not found");
       }
-      newUser.name = user.name;
-      newUser.email = user.email;
-      newUser.password = user.password;
-      newUser.dateOfBirth = user.dateOfBirth;
-      newUser.country = user.country;
+      if (updates.name !== undefined) user.name = updates.name;
+      if (updates.email !== undefined) user.email = updates.email;
+      if (updates.password !== undefined) user.password = updates.password;
+      if (updates.dateOfBirth !== undefined) user.dateOfBirth = updates.dateOfBirth as any;
+      if (updates.country !== undefined) user.country = updates.country;
 
-      await newUser.save();
-      user.save();
-      return newUser;
-    } catch (err) {
+      await user.save();
+      return user;
+    } catch (err: any) {
+      if (err?.name === "SequelizeUniqueConstraintError") {
+        throw new Error("Email already in use");
+      }
       if (err instanceof Error) {
         console.log(err);
         throw new Error("Failed to update user: " + err.message);
@@ -107,25 +119,20 @@ export class UserRepo implements iUserRepo {
     }
   }
 
-  async findById(user_id: string): Promise<User> {
+  async findById(user_id: string): Promise<User | null> {
     try {
-      const user = await User.findOne({ where: { id: user_id } });
-      if (!user) {
-        throw new Error("User not found");
-      }
-
-      return user;
+      return await User.findOne({ where: { id: user_id } });
     } catch (error) {
       console.error("Error retrieving user:", error);
       throw new Error("Failed to retrieve user by id:");
     }
   }
 
-  async delete(user_id: string): Promise<User> {
+  async delete(user_id: string): Promise<User | null> {
     try {
       const user = await User.findOne({ where: { id: user_id } });
       if (!user) {
-        throw new Error("User not found");
+        return null;
       }
 
       await user.destroy();
